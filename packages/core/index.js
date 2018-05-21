@@ -1,4 +1,5 @@
-const isPromise = require('./isPromise')
+const isPromise = require('./utils/isPromise')
+const callableOnce = require('./utils/callableOnce')
 
 /**
  * @typedef middy
@@ -142,11 +143,19 @@ const middy = (handler) => {
   const instance = (event, context, callback) => {
     instance.event = event
     instance.context = context
-    instance.callback = callback
+    instance.callback = callableOnce(callback)
     instance.response = null
     instance.error = null
 
+    const resetAllCallableOnce = () => {
+      instance.callback.__reset()
+      beforeMiddlewares.forEach((m) => m.__reset())
+      afterMiddlewares.forEach((m) => m.__reset())
+      errorMiddlewares.forEach((m) => m.__reset())
+    }
+
     const terminate = (err) => {
+      resetAllCallableOnce()
       if (err) {
         return callback(err)
       }
@@ -206,34 +215,34 @@ const middy = (handler) => {
     }
 
     if (before) {
-      instance.before(before)
+      instance.before(callableOnce(before))
     }
 
     if (after) {
-      instance.after(after)
+      instance.after(callableOnce(after))
     }
 
     if (onError) {
-      instance.onError(onError)
+      instance.onError(callableOnce(onError))
     }
 
     return instance
   }
 
   instance.before = (beforeMiddleware) => {
-    beforeMiddlewares.push(beforeMiddleware)
+    beforeMiddlewares.push(callableOnce(beforeMiddleware))
 
     return instance
   }
 
   instance.after = (afterMiddleware) => {
-    afterMiddlewares.unshift(afterMiddleware)
+    afterMiddlewares.unshift(callableOnce(afterMiddleware))
 
     return instance
   }
 
   instance.onError = (errorMiddleware) => {
-    errorMiddlewares.push(errorMiddleware)
+    errorMiddlewares.push(callableOnce(errorMiddleware))
 
     return instance
   }
